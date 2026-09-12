@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GS 时效监控台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #101823;
+    --ink-soft: #47525f;
+    --surface: #f4f6f8;
+    --surface-raised: #ffffff;
+    --surface-sunken: #e8ebee;
+    --border: #d7dce1;
+    --border-soft: #e4e8eb;
+    --accent: #2d6a86;
+    --accent-soft: #e5eef1;
+    --accent-ink: #1c4a5f;
+    --good: #3f7d58;
+    --good-soft: #e6f1ea;
+    --warn: #a97327;
+    --warn-soft: #f6ecdb;
+    --crit: #b0402a;
+    --crit-soft: #f8e6e1;
+    --crit-strong: #8c3120;
+    --shadow: 0 1px 2px rgba(16, 24, 35, 0.06), 0 8px 24px -12px rgba(16, 24, 35, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #e9edf1;
+      --ink-soft: #a3aebb;
+      --surface: #0e141c;
+      --surface-raised: #161f2a;
+      --surface-sunken: #0a0f16;
+      --border: #2a3542;
+      --border-soft: #202a35;
+      --accent: #6fb2cc;
+      --accent-soft: #16303a;
+      --accent-ink: #a9d9ea;
+      --good: #6cbf8e;
+      --good-soft: #142b1e;
+      --warn: #d9a84f;
+      --warn-soft: #2e2410;
+      --crit: #e2725a;
+      --crit-soft: #331611;
+      --crit-strong: #f19277;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px -12px rgba(0, 0, 0, 0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #e9edf1;
+    --ink-soft: #a3aebb;
+    --surface: #0e141c;
+    --surface-raised: #161f2a;
+    --surface-sunken: #0a0f16;
+    --border: #2a3542;
+    --border-soft: #202a35;
+    --accent: #6fb2cc;
+    --accent-soft: #16303a;
+    --accent-ink: #a9d9ea;
+    --good: #6cbf8e;
+    --good-soft: #142b1e;
+    --warn: #d9a84f;
+    --warn-soft: #2e2410;
+    --crit: #e2725a;
+    --crit-soft: #331611;
+    --crit-strong: #f19277;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    padding: 28px 20px 56px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .tab { font-variant-numeric: tabular-nums; }
+
+  /* header */
+  header.top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(22px, 3.4vw, 30px);
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .top-meta {
+    text-align: right;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+  .top-meta .live-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--good);
+    margin-right: 6px;
+    box-shadow: 0 0 0 3px var(--good-soft);
+  }
+  .top-meta .live-dot.stale { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft); }
+  .top-meta .live-dot.err { background: var(--crit); box-shadow: 0 0 0 3px var(--crit-soft); }
+
+  section { margin-bottom: 30px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .section-sub {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  /* KPI row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .kpi {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 18px 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .kpi-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .kpi-main {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .kpi-value {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .kpi-unit { font-size: 13px; color: var(--ink-soft); }
+  .delta-pill {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .delta-up { background: var(--crit-soft); color: var(--crit-strong); }
+  .delta-down { background: var(--good-soft); color: var(--good); }
+  .delta-flat { background: var(--surface-sunken); color: var(--ink-soft); }
+  .kpi-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 30px;
+  }
+  .kpi-bars .bar {
+    flex: 1;
+    background: var(--accent-soft);
+    border-radius: 3px 3px 0 0;
+    position: relative;
+  }
+  .kpi-bars .bar.now { background: var(--accent); }
+  .kpi-bars .bar-label {
+    position: absolute;
+    bottom: -17px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 9.5px;
+    color: var(--ink-soft);
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .kpi-foot {
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 14px;
+  }
+
+  /* two-column body */
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .panel {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 16px 18px 18px;
+  }
+
+  /* exception structure bars */
+  .exc-row {
+    display: grid;
+    grid-template-columns: 92px 1fr 64px 54px;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .exc-row:last-child { border-bottom: none; }
+  .exc-name { font-size: 12.5px; font-weight: 600; }
+  .exc-track {
+    height: 9px;
+    background: var(--surface-sunken);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .exc-fill { height: 100%; border-radius: 5px 0 0 5px; }
+  .exc-fill.crit { background: var(--crit); }
+  .exc-fill.warn { background: var(--warn); }
+  .exc-fill.acc { background: var(--accent); }
+  .exc-fill.mut { background: var(--ink-soft); }
+  .exc-val {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: right;
+  }
+
+  /* region table */
+  table.regions {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  table.regions th {
+    text-align: left;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 600;
+    padding: 0 8px 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  table.regions td {
+    padding: 8px 8px 8px 0;
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+  }
+  table.regions tr:last-child td { border-bottom: none; }
+  table.regions td.num, table.regions th.num { text-align: right; font-family: "IBM Plex Mono", monospace; }
+  .rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background: var(--surface-sunken);
+    color: var(--ink-soft);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    margin-right: 8px;
+  }
+  .rank.top { background: var(--accent-soft); color: var(--accent-ink); }
+  .minibar-track {
+    height: 6px;
+    width: 100%;
+    background: var(--surface-sunken);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .minibar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+
+  /* action list */
+  .action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .action-item:last-child { border-bottom: none; }
+  .sev-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+  .sev-dot.crit { background: var(--crit); box-shadow: 0 0 0 3px var(--crit-soft); }
+  .sev-dot.warn { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft); }
+  .action-text { font-size: 12.5px; line-height: 1.5; flex: 1; }
+  .action-text b { font-weight: 700; }
+  .action-num {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .action-note { color: var(--ink-soft); font-size: 11.5px; margin-top: 2px; }
+
+  .net-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-top: 14px;
+  }
+  .net-banner .label { font-size: 12.5px; color: var(--accent-ink); font-weight: 600; }
+  .net-banner .value {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent-ink);
+  }
+
+  footer.links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  footer.links span.tag {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .note-box {
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    background: var(--surface-sunken);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .warn-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--warn-soft);
+    border: 1px solid var(--warn);
+    color: var(--warn);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+  .center-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+  }
+
+  @media (max-width: 760px) {
+    .kpi-row { grid-template-columns: 1fr; }
+    .grid2 { grid-template-columns: 1fr; }
+    .exc-row { grid-template-columns: 78px 1fr 46px 40px; }
+    header.top { align-items: flex-start; }
+    .top-meta { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">SwiftX · TikTok GS 物流监控</p>
+      <h1>CD 交接后时效监控台</h1>
+    </div>
+    <div class="top-meta" id="metaBox">
+      <div><span class="live-dot" id="liveDot"></span><span id="genTime">连接中…</span></div>
+      <div>渠道：TikTok GS · 口径：CD交接后分段（5 / 7 / 14 天·FD关单）</div>
+    </div>
+  </header>
+
+  <div id="staleWarning" hidden></div>
+
+  <div id="loadingState" class="center-state">正在连接实时数据…</div>
+
+  <div id="mainContent" hidden>
+    <section>
+      <div class="section-head">
+        <span class="section-title">① 整体情况 — 未覆盖运单量</span>
+        <span class="section-sub">较昨日同一分桶</span>
+      </div>
+      <div class="kpi-row" id="kpiRow"></div>
+    </section>
+
+    <section class="grid2">
+      <div>
+        <div class="section-head">
+          <span class="section-title">② 核心异常结构（14D+ / FD关单桶）</span>
+          <span class="section-sub" id="excSub"></span>
+        </div>
+        <div class="panel">
+          <div id="excRows"></div>
+        </div>
+
+        <div style="height:22px"></div>
+
+        <div class="section-head">
+          <span class="section-title">③ 重点区域 Top 5（14D+ / FD关单桶）</span>
+          <span class="section-sub">按未覆盖票数排序</span>
+        </div>
+        <div class="panel">
+          <table class="regions">
+            <thead><tr><th>区域</th><th class="num">票数</th><th class="num">环比</th></tr></thead>
+            <tbody id="regionRows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-head">
+          <span class="section-title">④ 今日重点处理</span>
+          <span class="section-sub">14D+ / FD 桶内具体异常原因</span>
+        </div>
+        <div class="panel">
+          <div id="actionRows"></div>
+        </div>
+
+        <div style="height:22px"></div>
+
+        <div class="section-head">
+          <span class="section-title">⑤ 较昨日变化</span>
+          <span class="section-sub">净变化，未拆分新增/解决</span>
+        </div>
+        <div class="net-banner">
+          <span class="label">14D+ 未覆盖总量净变化</span>
+          <span class="value" id="netValue">—</span>
+        </div>
+        <p class="note-box">未做逐单（按运单号）连续追踪 —— 这里的环比是"今天总量 − 昨天总量"的净变化，不是"新增了多少 / 解决了多少"的拆分。如果以后需要新增/解决拆分，需要开始按天记录每个运单号的状态（目前按你的要求先不做）。</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="section-title">⑥ 明细看板 & 数据来源</span>
+      </div>
+      <footer class="links">
+        <div><span class="tag">明细 CSV</span> — daily_brief.py 每次运行会在本地生成 swiftx_gs_order_detail_&lt;date&gt;.csv（全量、非仅异常订单）</div>
+        <div><span class="tag">飞书简报</span> — 每天自动同步的同一份数据会推送①-⑤文字版到飞书群</div>
+        <div><span class="tag">历史记录</span> — 存在 Supabase 数据库里，逐日环比自动计算，不需要人手动搬运</div>
+      </footer>
+      <p class="note-box" id="syncNote"></p>
+    </section>
+  </div>
+</div>
+
+<script>
+  // Supabase 项目信息 —— URL 和 publishable key 都是设计成可以公开出现在
+  // 前端代码里的（不是密钥），真正的写权限由 Supabase 的 Row Level Security
+  // 策略控制：这个 key 只能 SELECT，不能 INSERT/UPDATE/DELETE。
+  const SUPABASE_URL = 'https://uqunfoxhrxwdeqmsoqro.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_vmCSLk6nIClGdiHcKx34hw_HjTOFSE6';
+  const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 分钟自动轮询一次，数据本身是按天更新的，不需要更频繁
+
+  function deltaPill(delta) {
+    if (delta === null || delta === undefined) return '<span class="delta-pill delta-flat">无昨日数据</span>';
+    if (delta > 0) return `<span class="delta-pill delta-up">↑ ${delta}</span>`;
+    if (delta < 0) return `<span class="delta-pill delta-down">↓ ${Math.abs(delta)}</span>`;
+    return `<span class="delta-pill delta-flat">→ 0</span>`;
+  }
+  function fmt(n) { return (n || 0).toLocaleString('en-US'); }
+  // 率值口径（2026-09-11 跟 Eve 在群里确认）：CD交接量（denom）做分母，
+  // 超过对应天数未妥投的量（total）占比 CD交接量。
+  function rate(bucket) { return bucket.denom ? bucket.total / bucket.denom : null; }
+  function fmtPct(r) { return r === null || r === undefined ? 'N/A' : (r * 100).toFixed(2) + '%'; }
+  function deltaPillPct(deltaPp) {
+    if (deltaPp === null || deltaPp === undefined) return '<span class="delta-pill delta-flat">无昨日数据</span>';
+    const rounded = Math.round(deltaPp * 100) / 100;
+    if (rounded > 0) return `<span class="delta-pill delta-up">↑ ${rounded}pp</span>`;
+    if (rounded < 0) return `<span class="delta-pill delta-down">↓ ${Math.abs(rounded)}pp</span>`;
+    return `<span class="delta-pill delta-flat">→ 0pp</span>`;
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function showState(msg, isError) {
+    const el = document.getElementById('loadingState');
+    el.hidden = false;
+    el.textContent = msg;
+    if (isError) el.style.color = 'var(--crit)';
+    document.getElementById('mainContent').hidden = true;
+  }
+
+  function render(historyDocs) {
+    const sorted = historyDocs.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (sorted.length === 0) {
+      showState('还没有同步过任何数据 — 等待第一次自动同步完成后这里会自动显示');
+      return;
+    }
+    const today = sorted[sorted.length - 1];
+    const yday = sorted.length > 1 ? sorted[sorted.length - 2] : null;
+
+    document.getElementById('loadingState').hidden = true;
+    document.getElementById('mainContent').hidden = false;
+
+    // header meta + staleness check
+    const genLabel = today.generated_at_local ? today.generated_at_local.replace('T', ' ').slice(0, 16) : today.date;
+    document.getElementById('genTime').textContent = '生成于 ' + genLabel + '（America/Los_Angeles）';
+    const dot = document.getElementById('liveDot');
+    const warnBox = document.getElementById('staleWarning');
+    let ageHours = null;
+    try {
+      const ts = today.generated_at_local ? new Date(today.generated_at_local) : new Date(today.date + 'T12:00:00-07:00');
+      ageHours = (Date.now() - ts.getTime()) / 3600000;
+    } catch (e) {}
+    if (ageHours !== null && ageHours > 36) {
+      dot.className = 'live-dot stale';
+      warnBox.hidden = false;
+      warnBox.className = 'warn-banner';
+      warnBox.textContent = `⚠️ 最新数据是 ${Math.round(ageHours / 24 * 10) / 10} 天前同步的，看起来定时任务可能没有正常运行——数字不一定是今天的实际情况，建议跟 Tim 确认一下。`;
+    } else {
+      dot.className = 'live-dot';
+      warnBox.hidden = true;
+    }
+
+    // ① KPI row
+    const kpiLabels = { "5": "5D", "7": "7D", "14": "14D+ · FD关单" };
+    const kpiRow = document.getElementById('kpiRow');
+    kpiRow.innerHTML = '';
+    ["5", "7", "14"].forEach(key => {
+      const bucketToday = today.buckets[key];
+      if (!bucketToday) return;
+      const bucketYday = yday ? yday.buckets[key] : null;
+      const cur = bucketToday.total;
+      const prev = bucketYday ? bucketYday.total : null;
+      const delta = prev !== null ? cur - prev : null;
+      const maxVal = Math.max(cur, prev || 0) || 1;
+      const curRate = rate(bucketToday);
+      const prevRate = bucketYday ? rate(bucketYday) : null;
+      const rateDeltaPp = (curRate !== null && prevRate !== null) ? (curRate - prevRate) * 100 : null;
+      const el = document.createElement('div');
+      el.className = 'kpi';
+      el.innerHTML = `
+        <div class="kpi-label">${kpiLabels[key]} 未覆盖运单</div>
+        <div class="kpi-main">
+          <span class="kpi-value tab">${fmt(cur)}</span>
+          <span class="kpi-unit">票</span>
+          ${deltaPill(delta)}
+        </div>
+        <div class="kpi-main" style="gap:8px">
+          <span class="tab" style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:var(--accent-ink)">率值 ${fmtPct(curRate)}</span>
+          ${deltaPillPct(rateDeltaPp)}
+        </div>
+        <div class="kpi-bars">
+          ${prev !== null ? `<div class="bar" style="height:${Math.max(6, prev / maxVal * 30)}px"><span class="bar-label">昨日</span></div>` : ''}
+          <div class="bar now" style="height:${Math.max(6, cur / maxVal * 30)}px"><span class="bar-label">今日</span></div>
+        </div>
+        <div class="kpi-foot">${key === "14" ? "含全部历史积压（无更早节点）" : `到达目的中心时间处于 ${key} 天监控窗口内`} · 率值=未覆盖量/CD交接量</div>
+      `;
+      kpiRow.appendChild(el);
+    });
+
+    // ② exception structure, 14D bucket
+    const t14 = today.buckets["14"] || { exceptionByGroup: {}, exceptionByCode: {}, regions: {} };
+    const y14 = yday ? (yday.buckets["14"] || null) : null;
+    document.getElementById('excSub').textContent = `当前未解决异常 ${fmt(Object.values(t14.exceptionByGroup || {}).reduce((a,b)=>a+b,0))} 票（含于未覆盖总量内）`;
+    const groupOrder = [
+      { key: "仓内(WHS)异常", short: "WHS", cls: "crit" },
+      { key: "HUB中转异常", short: "HUB", cls: "warn" },
+      { key: "末端派送(DL)异常", short: "DL", cls: "acc" },
+      { key: "派送商(DSP)异常", short: "DSP", cls: "mut" },
+    ];
+    const excMax = Math.max(...groupOrder.map(g => (t14.exceptionByGroup || {})[g.key] || 0), 1);
+    const excRows = document.getElementById('excRows');
+    excRows.innerHTML = '';
+    groupOrder.forEach(g => {
+      const v = (t14.exceptionByGroup || {})[g.key] || 0;
+      const pv = y14 ? ((y14.exceptionByGroup || {})[g.key] || 0) : null;
+      const delta = pv !== null ? v - pv : null;
+      const row = document.createElement('div');
+      row.className = 'exc-row';
+      row.innerHTML = `
+        <span class="exc-name">${g.short}</span>
+        <span class="exc-track"><span class="exc-fill ${g.cls}" style="width:${v / excMax * 100}%"></span></span>
+        <span class="exc-val tab">${fmt(v)}</span>
+        <span style="text-align:right">${deltaPill(delta)}</span>
+      `;
+      excRows.appendChild(row);
+    });
+
+    // ③ region top 5
+    const regionEntries = Object.entries(t14.regions || {}).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const regionMax = (regionEntries[0] && regionEntries[0][1]) || 1;
+    const regionRows = document.getElementById('regionRows');
+    regionRows.innerHTML = '';
+    regionEntries.forEach(([region, v], i) => {
+      const pv = y14 ? (y14.regions || {})[region] : null;
+      const delta = (pv !== null && pv !== undefined) ? v - pv : null;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="rank ${i === 0 ? 'top' : ''}">${i + 1}</span>${escapeHtml(region.replace('区域', '').replace('其他/未分类仓','其他'))}
+          <div class="minibar-track"><span class="minibar-fill" style="width:${v / regionMax * 100}%"></span></div>
+        </td>
+        <td class="num tab">${fmt(v)}</td>
+        <td class="num">${deltaPill(delta)}</td>
+      `;
+      regionRows.appendChild(tr);
+    });
+
+    // ④ action list: 长时间未找到 (ERWHS010+ERHUB009), 疑似丢失 (ERWHS006)
+    const ebc = t14.exceptionByCode || {};
+    const yebc = y14 ? (y14.exceptionByCode || {}) : {};
+    const longMissing = (ebc["ERWHS010"] || 0) + (ebc["ERHUB009"] || 0);
+    const yLongMissing = y14 ? (yebc["ERWHS010"] || 0) + (yebc["ERHUB009"] || 0) : null;
+    const suspectedLost = ebc["ERWHS006"] || 0;
+    const ySuspectedLost = y14 ? (yebc["ERWHS006"] || 0) : null;
+    const actionRows = document.getElementById('actionRows');
+    actionRows.innerHTML = `
+      <div class="action-item">
+        <span class="sev-dot crit"></span>
+        <div class="action-text">
+          <b>长时间未找到</b>（ERWHS010 仓内 + ERHUB009 HUB中转合计）
+          <div class="action-note">最需要人工排查的一类——长期卡在仓内/HUB分拣环节找不到</div>
+        </div>
+        <div style="text-align:right">
+          <div class="action-num tab">${fmt(longMissing)}</div>
+          <div style="margin-top:4px">${deltaPill(yLongMissing !== null ? longMissing - yLongMissing : null)}</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <span class="sev-dot warn"></span>
+        <div class="action-text">
+          <b>仓库内疑似丢失</b>（ERWHS006）
+          <div class="action-note">在仓内环节被标记疑似丢失，尚未走到"长时间未找到"分类</div>
+        </div>
+        <div style="text-align:right">
+          <div class="action-num tab">${fmt(suspectedLost)}</div>
+          <div style="margin-top:4px">${deltaPill(ySuspectedLost !== null ? suspectedLost - ySuspectedLost : null)}</div>
+        </div>
+      </div>
+    `;
+
+    // ⑤ net change banner
+    const netEl = document.getElementById('netValue');
+    if (y14) {
+      const net = t14.total - y14.total;
+      netEl.textContent = (net > 0 ? '↑ +' : net < 0 ? '↓ ' : '→ ') + fmt(net) + ' 票';
+      netEl.style.color = net > 0 ? 'var(--crit-strong)' : net < 0 ? 'var(--good)' : 'var(--accent-ink)';
+    } else {
+      netEl.textContent = '暂无昨日数据';
+    }
+
+    // sync note
+    document.getElementById('syncNote').innerHTML =
+      `<b>这份看板会自动更新：</b>后台有一个每天定时运行的同步任务，把当天的 SwiftX 数据写进 Supabase 数据库——你不需要做任何事，打开这个页面看到的就是最新数据（这个页面开着的时候，每 5 分钟也会自动重新拉取一次，不用手动刷新页面）。目前已经积累了 ${sorted.length} 天的真实数据（${sorted[0].date} 至 ${today.date}），天数越多，环比和后续可能加的趋势线会越准。`;
+  }
+
+  async function loadData() {
+    try {
+      const resp = await fetch(
+        SUPABASE_URL + '/rest/v1/history?select=date,generated_at_local,buckets&order=date.asc',
+        { headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: 'Bearer ' + SUPABASE_PUBLISHABLE_KEY } }
+      );
+      if (!resp.ok) {
+        showState('读取数据失败（HTTP ' + resp.status + '）', true);
+        return;
+      }
+      const rows = await resp.json();
+      // buckets 存的是数据库字段名 generated_at_local，页面渲染逻辑里统一用这个字段名
+      render(rows);
+    } catch (e) {
+      showState('初始化失败：' + String(e), true);
+    }
+  }
+
+  loadData();
+  setInterval(loadData, POLL_INTERVAL_MS);
+</script>
+</body>
+</html>
