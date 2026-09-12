@@ -27,6 +27,14 @@
     --crit-soft: #f8e6e1;
     --crit-strong: #8c3120;
     --shadow: 0 1px 2px rgba(16, 24, 35, 0.06), 0 8px 24px -12px rgba(16, 24, 35, 0.12);
+    /* ⑥ 分区域周趋势：5 槽分类色板（dataviz skill 默认色板前 5 槽，浅色模式，
+       已跑过 validate_palette.js 校验：全部通过，3 个槽位对比度 <3:1 落在
+       WARN 区间，靠图例文字/表格视图兜底，不能只靠颜色本身分辨）。 */
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+    --series-5: #e87ba4;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -48,6 +56,13 @@
       --crit-soft: #331611;
       --crit-strong: #f19277;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px -12px rgba(0, 0, 0, 0.5);
+      /* 深色模式同一组 5 槽色板的深色台阶（dataviz skill 默认色板），已用
+         validate_palette.js 对 --surface-raised 的深色值校验过：全部通过。 */
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-4: #c98500;
+      --series-5: #d55181;
     }
   }
   :root[data-theme="dark"] {
@@ -69,6 +84,11 @@
     --crit-soft: #331611;
     --crit-strong: #f19277;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px -12px rgba(0, 0, 0, 0.5);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
   }
 
   * { box-sizing: border-box; }
@@ -405,6 +425,81 @@
     font-size: 13.5px;
   }
 
+  /* ⑥ 分区域周趋势 */
+  .trend-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-bottom: 10px;
+  }
+  .trend-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .trend-legend-swatch { flex-shrink: 0; }
+  .trend-chart-wrap {
+    position: relative;
+    width: 100%;
+  }
+  .trend-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: none;
+  }
+  .trend-axis-label {
+    fill: var(--ink-soft);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 9px;
+  }
+  .trend-tooltip {
+    position: absolute;
+    z-index: 5;
+    min-width: 150px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 8px 10px;
+    font-size: 11.5px;
+    pointer-events: none;
+  }
+  .trend-tt-head {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+    white-space: nowrap;
+  }
+  .trend-tt-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    white-space: nowrap;
+  }
+  .trend-tt-name { flex: 1; color: var(--ink-soft); }
+  .trend-tt-val {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .trend-table-toggle {
+    margin-top: 10px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .trend-table-toggle:hover { background: var(--surface-sunken); color: var(--ink); }
+  #trendTableWrap { margin-top: 12px; overflow-x: auto; }
+
   @media (max-width: 760px) {
     .kpi-row { grid-template-columns: 1fr; }
     .grid2 { grid-template-columns: 1fr; }
@@ -489,7 +584,26 @@
 
     <section>
       <div class="section-head">
-        <span class="section-title">⑥ 明细看板 & 数据来源</span>
+        <span class="section-title">⑥ 分区域周趋势（14D+ / FD关单桶）</span>
+        <span class="section-sub" id="trendSub"></span>
+      </div>
+      <div class="panel">
+        <div class="trend-legend" id="trendLegend"></div>
+        <div class="trend-chart-wrap" id="trendChartWrap">
+          <svg class="trend-svg" id="trendSvg" role="img" aria-label="分区域未覆盖量周趋势"></svg>
+          <div class="trend-tooltip" id="trendTooltip" hidden></div>
+        </div>
+        <button type="button" class="trend-table-toggle" id="trendTableToggle">查看数据表</button>
+        <div id="trendTableWrap" hidden>
+          <table class="regions" id="trendTable"></table>
+        </div>
+        <p class="note-box" id="trendNote"></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="section-title">⑦ 明细看板 & 数据来源</span>
       </div>
       <footer class="links">
         <div><span class="tag">明细 CSV</span> — daily_brief.py 每次运行会在本地生成 swiftx_gs_order_detail_&lt;date&gt;.csv（全量、非仅异常订单）</div>
@@ -537,6 +651,234 @@
     el.textContent = msg;
     if (isError) el.style.color = 'var(--crit)';
     document.getElementById('mainContent').hidden = true;
+  }
+
+  // ⑥ 分区域周趋势 —— 5 槽分类色板（见文件头部 :root 里的 --series-1..5，
+  // 已用 dataviz skill 的 validate_palette.js 校验过，浅色模式 3 个槽位对比度
+  // 落在 <3:1 的 WARN 区间，靠图例文字 + 数据表视图兜底，图上不会只靠颜色本身）。
+  const TREND_COLOR_VARS = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5'];
+
+  function shortRegionName(region) {
+    return region.replace('区域', '').replace('其他/未分类仓', '其他');
+  }
+
+  function mondayOf(dateStr) {
+    // dateStr: "YYYY-MM-DD"，当纯日历日期处理，不做时区换算（跟页面其它
+    // 地方处理 date 字段的方式一致）。
+    const d = new Date(dateStr + 'T00:00:00');
+    const day = d.getDay(); // 0=周日..6=周六
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+  }
+  function weekLabel(mondayStr) {
+    const parts = mondayStr.split('-');
+    return `${parts[1]}/${parts[2]} 周`;
+  }
+  function niceCeil(v) {
+    if (v <= 0) return 1;
+    const mag = Math.pow(10, Math.floor(Math.log10(v)));
+    const norm = v / mag;
+    const niceNorm = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+    return niceNorm * mag;
+  }
+
+  function buildWeeklyRegionTrend(sortedDocs, regionNames) {
+    // 每周取该周内"14"桶最后一天的快照值（未覆盖量是"当前积压"，不是流量，
+    // 求和/平均没有意义，取周末快照才对）。region 集合是调用方传进来的固定
+    // Top N（今天的排名），不会每周重新按当周排名挑选——避免同一个区域因为
+    // 排名浮动而在图上换颜色（"颜色跟着实体走，不跟着排名走"）。
+    const byWeek = new Map();
+    sortedDocs.forEach(doc => {
+      const t14 = doc.buckets && doc.buckets["14"];
+      if (!t14) return;
+      const wk = mondayOf(doc.date);
+      const prev = byWeek.get(wk);
+      if (!prev || doc.date > prev.date) {
+        byWeek.set(wk, { date: doc.date, regions: t14.regions || {} });
+      }
+    });
+    return Array.from(byWeek.keys()).sort().map(wk => {
+      const entry = byWeek.get(wk);
+      const values = {};
+      regionNames.forEach(r => { values[r] = entry.regions[r] || 0; });
+      return { week: wk, asOf: entry.date, values };
+    });
+  }
+
+  function renderTrendTable(weeklySeries, regionNames) {
+    const table = document.getElementById('trendTable');
+    table.innerHTML = '';
+    const thead = document.createElement('thead');
+    const headTr = document.createElement('tr');
+    const thWeek = document.createElement('th');
+    thWeek.textContent = '周（周一起，截至该周最后一天）';
+    headTr.appendChild(thWeek);
+    regionNames.forEach(region => {
+      const th = document.createElement('th');
+      th.className = 'num';
+      th.textContent = shortRegionName(region); // 区域名来自数据库，走 textContent
+      headTr.appendChild(th);
+    });
+    thead.appendChild(headTr);
+    const tbody = document.createElement('tbody');
+    weeklySeries.forEach(w => {
+      const tr = document.createElement('tr');
+      const tdWeek = document.createElement('td');
+      tdWeek.textContent = `${weekLabel(w.week)}（${w.asOf}）`;
+      tr.appendChild(tdWeek);
+      regionNames.forEach(region => {
+        const td = document.createElement('td');
+        td.className = 'num tab';
+        td.textContent = fmt(w.values[region] || 0);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(thead);
+    table.appendChild(tbody);
+  }
+
+  function renderTrendChart(weeklySeries, regionNames) {
+    const wrap = document.getElementById('trendChartWrap');
+    const svg = document.getElementById('trendSvg');
+    const legend = document.getElementById('trendLegend');
+    const sub = document.getElementById('trendSub');
+    const note = document.getElementById('trendNote');
+    const tooltip = document.getElementById('trendTooltip');
+
+    sub.textContent = `按周（周一起点）· Top ${regionNames.length} 区域，跟③排名一致`;
+
+    if (regionNames.length === 0 || weeklySeries.length === 0) {
+      svg.innerHTML = '';
+      legend.innerHTML = '';
+      tooltip.hidden = true;
+      note.textContent = '暂无足够数据绘制趋势——等区域明细快照积累后这里会自动显示。';
+      return;
+    }
+
+    const W = 760, H = 220, padL = 46, padR = 16, padT = 12, padB = 26;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const n = weeklySeries.length;
+    const xAt = i => (n <= 1 ? padL + plotW / 2 : padL + (plotW * i) / (n - 1));
+    const maxVal = Math.max(1, ...weeklySeries.flatMap(w => regionNames.map(r => w.values[r] || 0)));
+    const niceMax = niceCeil(maxVal);
+    const yAt = v => padT + plotH - (v / niceMax) * plotH;
+
+    let gridSvg = '';
+    const tickCount = 4;
+    for (let t = 0; t <= tickCount; t++) {
+      const v = Math.round((niceMax * t) / tickCount);
+      const y = yAt(v);
+      gridSvg += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--border-soft)" stroke-width="1"/>`;
+      gridSvg += `<text x="${padL - 8}" y="${y + 3}" text-anchor="end" class="trend-axis-label">${fmt(v)}</text>`;
+    }
+    gridSvg += `<line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="var(--border)" stroke-width="1"/>`;
+
+    let xLabelsSvg = '';
+    const labelEvery = Math.max(1, Math.ceil(n / 6));
+    weeklySeries.forEach((w, i) => {
+      if (i % labelEvery !== 0 && i !== n - 1) return;
+      // 首尾两个标签贴边锚定（start/end），避免 text-anchor=middle 在
+      // viewBox 边缘被裁掉一半文字；中间标签居中对齐。
+      const anchor = i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
+      xLabelsSvg += `<text x="${xAt(i)}" y="${H - 8}" text-anchor="${anchor}" class="trend-axis-label">${weekLabel(w.week)}</text>`;
+    });
+
+    let marksSvg = '';
+    regionNames.forEach((region, idx) => {
+      const colorVar = `var(${TREND_COLOR_VARS[idx % TREND_COLOR_VARS.length]})`;
+      if (n > 1) {
+        const pts = weeklySeries.map((w, i) => `${xAt(i)},${yAt(w.values[region] || 0)}`).join(' ');
+        marksSvg += `<polyline points="${pts}" fill="none" stroke="${colorVar}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      }
+      weeklySeries.forEach((w, i) => {
+        marksSvg += `<circle cx="${xAt(i)}" cy="${yAt(w.values[region] || 0)}" r="4" fill="${colorVar}" stroke="var(--surface-raised)" stroke-width="2"/>`;
+      });
+    });
+
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.innerHTML = gridSvg + xLabelsSvg + marksSvg +
+      `<line id="trendCrosshair" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--ink-soft)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>` +
+      `<rect id="trendHitLayer" x="${padL}" y="${padT}" width="${Math.max(plotW, 1)}" height="${plotH}" fill="transparent"/>`;
+
+    // 图例（line-key 用短线段而不是色块，跟折线图的画法对应——dataviz skill：
+    // "legends mirror the mark: rect for bars/areas, line for lines"）
+    legend.innerHTML = '';
+    regionNames.forEach((region, idx) => {
+      const item = document.createElement('span');
+      item.className = 'trend-legend-item';
+      item.innerHTML = `<svg class="trend-legend-swatch" width="16" height="8" viewBox="0 0 16 8" aria-hidden="true"><line x1="0" y1="4" x2="16" y2="4" stroke="var(${TREND_COLOR_VARS[idx % TREND_COLOR_VARS.length]})" stroke-width="2" stroke-linecap="round"/></svg>`;
+      const label = document.createElement('span');
+      label.textContent = shortRegionName(region); // textContent，不拼 innerHTML
+      item.appendChild(label);
+      legend.appendChild(item);
+    });
+
+    const hitLayer = document.getElementById('trendHitLayer');
+    const crosshair = document.getElementById('trendCrosshair');
+
+    function nearestIndex(clientX) {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((clientX - rect.left) / rect.width) * W;
+      let best = 0, bestDist = Infinity;
+      weeklySeries.forEach((w, i) => {
+        const dist = Math.abs(xAt(i) - svgX);
+        if (dist < bestDist) { bestDist = dist; best = i; }
+      });
+      return best;
+    }
+    function showTooltip(i, clientX, clientY) {
+      const w = weeklySeries[i];
+      crosshair.setAttribute('x1', xAt(i));
+      crosshair.setAttribute('x2', xAt(i));
+      crosshair.setAttribute('opacity', '1');
+      tooltip.innerHTML = '';
+      const head = document.createElement('div');
+      head.className = 'trend-tt-head';
+      head.textContent = `${weekLabel(w.week)}（截至 ${w.asOf}）`;
+      tooltip.appendChild(head);
+      regionNames.forEach((region, idx) => {
+        const row = document.createElement('div');
+        row.className = 'trend-tt-row';
+        row.innerHTML = `<svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><line x1="0" y1="4" x2="12" y2="4" stroke="var(${TREND_COLOR_VARS[idx % TREND_COLOR_VARS.length]})" stroke-width="2"/></svg>`;
+        const name = document.createElement('span');
+        name.className = 'trend-tt-name';
+        name.textContent = shortRegionName(region);
+        const val = document.createElement('span');
+        val.className = 'trend-tt-val tab';
+        val.textContent = fmt(w.values[region] || 0);
+        row.appendChild(name);
+        row.appendChild(val);
+        tooltip.appendChild(row);
+      });
+      tooltip.hidden = false;
+      const wrapRect = wrap.getBoundingClientRect();
+      let left = clientX - wrapRect.left + 12;
+      const top = clientY - wrapRect.top - 12;
+      if (left + 190 > wrapRect.width) left = clientX - wrapRect.left - 190 - 12;
+      tooltip.style.left = Math.max(0, left) + 'px';
+      tooltip.style.top = Math.max(0, top) + 'px';
+    }
+    function hideTooltip() {
+      crosshair.setAttribute('opacity', '0');
+      tooltip.hidden = true;
+    }
+    hitLayer.addEventListener('pointermove', e => showTooltip(nearestIndex(e.clientX), e.clientX, e.clientY));
+    hitLayer.addEventListener('pointerleave', hideTooltip);
+    hitLayer.addEventListener('pointerdown', e => showTooltip(nearestIndex(e.clientX), e.clientX, e.clientY));
+
+    note.innerHTML = '';
+    note.appendChild(document.createElement('b')).textContent = '怎么读这张图：';
+    note.appendChild(document.createTextNode(
+      `每周取该周内最后一天的"14D+ / FD关单"快照（未覆盖量是当前积压存量，不是流量，所以不做求和/平均），区域集合固定用今天③的 Top ${regionNames.length}（不随每周排名重新洗牌，颜色不会跳来跳去）。目前积累了 ${n} 周的真实数据` +
+      (n < 4 ? '——数据还比较稀疏，随着定时任务每天同步，这里的周趋势会越来越完整（不会用假数据补空白早期的周）。' : '。')
+    ));
+
+    renderTrendTable(weeklySeries, regionNames);
   }
 
   function render(historyDocs) {
@@ -655,6 +997,10 @@
       regionRows.appendChild(tr);
     });
 
+    // ⑥ 分区域周趋势：跟③用同一批 Top N 区域名单（固定名单，不按每周重新排名）
+    const trendRegionNames = regionEntries.map(([region]) => region);
+    renderTrendChart(buildWeeklyRegionTrend(sorted, trendRegionNames), trendRegionNames);
+
     // ④ action list: 长时间未找到 (ERWHS010+ERHUB009), 疑似丢失 (ERWHS006)
     const ebc = t14.exceptionByCode || {};
     const yebc = y14 ? (y14.exceptionByCode || {}) : {};
@@ -700,7 +1046,7 @@
 
     // sync note
     document.getElementById('syncNote').innerHTML =
-      `<b>这份看板会自动更新：</b>后台有一个每天定时运行的同步任务，把当天的 SwiftX 数据写进 Supabase 数据库——你不需要做任何事，打开这个页面看到的就是最新数据（这个页面开着的时候，每 5 分钟也会自动重新拉取一次，不用手动刷新页面）。目前已经积累了 ${sorted.length} 天的真实数据（${sorted[0].date} 至 ${today.date}），天数越多，环比和后续可能加的趋势线会越准。`;
+      `<b>这份看板会自动更新：</b>后台有一个每天定时运行的同步任务，把当天的 SwiftX 数据写进 Supabase 数据库——你不需要做任何事，打开这个页面看到的就是最新数据（这个页面开着的时候，每 5 分钟也会自动重新拉取一次，不用手动刷新页面）。目前已经积累了 ${sorted.length} 天的真实数据（${sorted[0].date} 至 ${today.date}），天数越多，环比和⑥的周趋势会越准。`;
   }
 
   async function loadData() {
@@ -720,6 +1066,12 @@
       showState('初始化失败：' + String(e), true);
     }
   }
+
+  document.getElementById('trendTableToggle').addEventListener('click', () => {
+    const wrap = document.getElementById('trendTableWrap');
+    wrap.hidden = !wrap.hidden;
+    document.getElementById('trendTableToggle').textContent = wrap.hidden ? '查看数据表' : '收起数据表';
+  });
 
   loadData();
   setInterval(loadData, POLL_INTERVAL_MS);
