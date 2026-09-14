@@ -382,6 +382,17 @@
     color: var(--accent-ink);
   }
 
+  /* 逐单新增/解决拆分 (2026-09-14 added) -- two boxes reusing .net-banner's
+     visual language, shown only when order_diff data is available. */
+  .diff-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 10px;
+  }
+  .diff-row[hidden] { display: none; }
+  .diff-row .net-banner { margin-top: 0; }
+
   footer.links {
     display: flex;
     flex-wrap: wrap;
@@ -503,6 +514,7 @@
   @media (max-width: 760px) {
     .kpi-row { grid-template-columns: 1fr; }
     .grid2 { grid-template-columns: 1fr; }
+    .diff-row { grid-template-columns: 1fr; }
     .exc-row { grid-template-columns: 78px 1fr 46px 40px; }
     header.top { align-items: flex-start; }
     .top-meta { text-align: left; }
@@ -518,7 +530,7 @@
     </div>
     <div class="top-meta" id="metaBox">
       <div><span class="live-dot" id="liveDot"></span><span id="genTime">连接中…</span></div>
-      <div>渠道：TikTok GS · 口径：CD交接后分段（5 / 7 / 14 天·FD关单）</div>
+      <div>渠道：TikTok GS · 口径：CD交接后累计（5+ / 7+ / 14+ 天·FD关单）</div>
     </div>
   </header>
 
@@ -572,13 +584,23 @@
 
         <div class="section-head">
           <span class="section-title">⑤ 较昨日变化</span>
-          <span class="section-sub">净变化，未拆分新增/解决</span>
+          <span class="section-sub" id="diffSectionSub">净变化，未拆分新增/解决</span>
         </div>
         <div class="net-banner">
           <span class="label">14D+ 未覆盖总量净变化</span>
           <span class="value" id="netValue">—</span>
         </div>
-        <p class="note-box">未做逐单（按运单号）连续追踪 —— 这里的环比是"今天总量 − 昨天总量"的净变化，不是"新增了多少 / 解决了多少"的拆分。如果以后需要新增/解决拆分，需要开始按天记录每个运单号的状态（目前按你的要求先不做）。</p>
+        <div class="diff-row" id="diffRow" hidden>
+          <div class="net-banner">
+            <span class="label">新增未覆盖（今天有/上次没有）</span>
+            <span class="value" id="addedValue" style="color:var(--crit-strong)">—</span>
+          </div>
+          <div class="net-banner">
+            <span class="label">已解决（上次有/今天没有）</span>
+            <span class="value" id="resolvedValue" style="color:var(--good)">—</span>
+          </div>
+        </div>
+        <p class="note-box" id="diffNoteBox">未做逐单（按运单号）连续追踪 —— 这里的环比是"今天总量 − 昨天总量"的净变化，不是"新增了多少 / 解决了多少"的拆分。如果以后需要新增/解决拆分，需要开始按天记录每个运单号的状态（目前按你的要求先不做）。</p>
       </div>
     </section>
 
@@ -914,7 +936,7 @@
     }
 
     // ① KPI row
-    const kpiLabels = { "5": "5D", "7": "7D", "14": "14D+ · FD关单" };
+    const kpiLabels = { "5": "5D+", "7": "7D+", "14": "14D+ · FD关单" };
     const kpiRow = document.getElementById('kpiRow');
     kpiRow.innerHTML = '';
     ["5", "7", "14"].forEach(key => {
@@ -1042,6 +1064,27 @@
       netEl.style.color = net > 0 ? 'var(--crit-strong)' : net < 0 ? 'var(--good)' : 'var(--accent-ink)';
     } else {
       netEl.textContent = '暂无昨日数据';
+    }
+
+    // ⑤ 逐单新增/解决拆分 (2026-09-14) -- t14.added/t14.resolved 只有在
+    // Supabase 的 order_snapshots 表已经攒够两天快照时才会有值；用
+    // !== undefined && !== null 判断"有没有数据"，不能用真假值判断
+    // （0 是"确实没有新增/解决"，是有效数据，不是"没数据"）。
+    const diffRow = document.getElementById('diffRow');
+    const diffSectionSub = document.getElementById('diffSectionSub');
+    const diffNoteBox = document.getElementById('diffNoteBox');
+    const hasDiff = t14.added !== undefined && t14.added !== null
+      && t14.resolved !== undefined && t14.resolved !== null;
+    if (hasDiff) {
+      document.getElementById('addedValue').textContent = '+' + fmt(t14.added) + ' 单';
+      document.getElementById('resolvedValue').textContent = '+' + fmt(t14.resolved) + ' 单';
+      diffRow.hidden = false;
+      diffSectionSub.textContent = '逐单（按运单号）对比，已拆分新增/解决';
+      diffNoteBox.textContent = '新增 = 今天在"未覆盖"名单里、上次快照没有的运单；解决 = 上次快照里有、今天不在了的运单（可能是妥投，也可能是丢失/核销后关单退出统计口径，这里不区分）。上面的净变化 ≈ 新增 − 解决，两边统计时点略有差异，允许有极小误差。';
+    } else {
+      diffRow.hidden = true;
+      diffSectionSub.textContent = '净变化，未拆分新增/解决';
+      diffNoteBox.textContent = '暂时还没有逐单新增/解决数据（可能是刚开始跑、还没攒够两天快照，或者这次同步跳过了明细拉取）——这里的环比是"今天总量 − 昨天总量"的净变化，不是"新增了多少 / 解决了多少"的拆分。';
     }
 
     // sync note
