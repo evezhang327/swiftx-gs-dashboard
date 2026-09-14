@@ -530,7 +530,7 @@
     </div>
     <div class="top-meta" id="metaBox">
       <div><span class="live-dot" id="liveDot"></span><span id="genTime">连接中…</span></div>
-      <div>渠道：TikTok GS · 口径：CD交接后累计（5+ / 7+ / 14+ 天·FD关单）</div>
+      <div>渠道：TikTok GS · 口径：CD交接后分段（5 / 7 / 14 天·FD关单）</div>
     </div>
   </header>
 
@@ -936,7 +936,7 @@
     }
 
     // ① KPI row
-    const kpiLabels = { "5": "5D+", "7": "7D+", "14": "14D+ · FD关单" };
+    const kpiLabels = { "5": "5D", "7": "7D", "14": "14D+ · FD关单" };
     const kpiRow = document.getElementById('kpiRow');
     kpiRow.innerHTML = '';
     ["5", "7", "14"].forEach(key => {
