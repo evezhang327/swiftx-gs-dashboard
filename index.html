@@ -466,6 +466,7 @@
     font-family: "IBM Plex Mono", monospace;
     font-size: 9px;
   }
+  .trend-axis-label-est { opacity: 0.55; font-style: italic; }
   .trend-tooltip {
     position: absolute;
     z-index: 5;
@@ -762,24 +763,44 @@
   function renderDailyTrend(sortedDocs) {
     const sub = document.getElementById('dailyTrendSub');
     const row = document.getElementById('dailyTrendRow');
-    const days = sortedDocs.slice(-7);
+    const realDays = sortedDocs.slice(-7);
 
-    // 找出日期范围内没有同步记录的天（比如某天 daily_brief.py 没跑/跑失败，
-    // Supabase 里直接没有那一行——不是"点画漏了"，是那天真的没有数据）。
-    // 标在小标题里，不然连着两个点画在一起，容易误以为是连续两天。
-    const missingDates = [];
-    for (let i = 1; i < days.length; i++) {
-      const prev = new Date(days[i - 1].date + 'T00:00:00');
-      const cur = new Date(days[i].date + 'T00:00:00');
-      const gapDays = Math.round((cur - prev) / 86400000);
-      for (let g = 1; g < gapDays; g++) {
-        const missing = new Date(prev.getTime() + g * 86400000);
-        missingDates.push(missing.toISOString().slice(0, 10));
+    // 把日历上连续但没有真实同步记录的天，用"插值估算"补成一个点——
+    // 不是真数据，是相邻两个真实点连一条直线算出来的中间值，专门给要拿
+    // 这张图做演示、又不想让曲线中间凭空断掉的场景用。这个点在图上会用
+    // 虚线段+空心圈跟真实点明确区分开，hover 上去写清楚"插值估算，无
+    // 实际同步数据"，右上角小标题也会点名是哪天——不会让人把它当成真实
+    // 同步过的数据（2026-09-17 应 Tim 要求加，之前这里是直接留空）。
+    const days = [];
+    for (let i = 0; i < realDays.length; i++) {
+      days.push(Object.assign({ estimated: false }, realDays[i]));
+      if (i < realDays.length - 1) {
+        const prev = new Date(realDays[i].date + 'T00:00:00');
+        const next = new Date(realDays[i + 1].date + 'T00:00:00');
+        const gapDays = Math.round((next - prev) / 86400000);
+        for (let g = 1; g < gapDays; g++) {
+          const dt = new Date(prev.getTime() + g * 86400000);
+          const dateStr = dt.toISOString().slice(0, 10);
+          const frac = g / gapDays;
+          const estBuckets = {};
+          ['5', '7', '14'].forEach(key => {
+            const bPrev = realDays[i].buckets && realDays[i].buckets[key];
+            const bNext = realDays[i + 1].buckets && realDays[i + 1].buckets[key];
+            if (bPrev && bNext && typeof bPrev.total === 'number' && typeof bNext.total === 'number') {
+              estBuckets[key] = { total: bPrev.total + (bNext.total - bPrev.total) * frac };
+            }
+          });
+          days.push({ date: dateStr, buckets: estBuckets, estimated: true });
+        }
       }
     }
-    const gapNote = missingDates.length ? `，${missingDates.join('、')} 无同步记录` : '';
-    sub.textContent = days.length > 1
-      ? `最近 ${days.length} 天（${days[0].date} 至 ${days[days.length - 1].date}${gapNote}）`
+
+    const estimatedDates = days.filter(d => d.estimated).map(d => d.date);
+    const gapNote = estimatedDates.length
+      ? `，${estimatedDates.join('、')} 无实际同步数据（图中虚线空心点为插值估算）`
+      : '';
+    sub.textContent = realDays.length > 1
+      ? `最近 ${realDays.length} 天（${realDays[0].date} 至 ${realDays[realDays.length - 1].date}${gapNote}）`
       : '数据还太少，等再攒几天';
     row.innerHTML = '';
     if (days.length === 0) return;
@@ -827,24 +848,33 @@
       // 的点看起来像是"没有数据"，其实点本身在，只是没画文字（2026-09-17
       // 应 Tim 要求改）。首尾两点标完整的"月/日"，中间的点只标"日"两位数字
       // （省空间，画得下 7 个点也不挤），月份看卡片右上角"最近 N 天"那行。
+      // 插值估算点的标签额外加个 est 修饰类，样式上会淡一点。
       let xLabelsSvg = '';
       days.forEach((d, i) => {
         const anchor = i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
         const raw = d.date || '';
         const label = (i === 0 || i === n - 1) ? raw.slice(5).replace('-', '/') : raw.slice(8, 10);
-        xLabelsSvg += `<text x="${xAt(i)}" y="${H - 4}" text-anchor="${anchor}" class="trend-axis-label">${label}</text>`;
+        const cls = 'trend-axis-label' + (d.estimated ? ' trend-axis-label-est' : '');
+        xLabelsSvg += `<text x="${xAt(i)}" y="${H - 4}" text-anchor="${anchor}" class="${cls}">${label}</text>`;
       });
 
+      // 折线拆成一段段单独的 <line> 而不是一条 <polyline>，这样才能只给
+      // "挨着插值点"的那一两段线画成虚线，真实点之间的线还是实线。
       let marksSvg = '';
-      if (n > 1) {
-        const pts = values.map((v, i) => (v === null || v === undefined ? null : `${xAt(i)},${yAt(v)}`)).filter(Boolean).join(' ');
-        if (pts) {
-          marksSvg += `<polyline points="${pts}" fill="none" stroke="var(${spec.colorVar})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-        }
+      for (let i = 0; i < n - 1; i++) {
+        const v1 = values[i], v2 = values[i + 1];
+        if (v1 === null || v1 === undefined || v2 === null || v2 === undefined) continue;
+        const dashed = days[i].estimated || days[i + 1].estimated;
+        marksSvg += `<line x1="${xAt(i)}" y1="${yAt(v1)}" x2="${xAt(i + 1)}" y2="${yAt(v2)}" stroke="var(${spec.colorVar})" stroke-width="2" stroke-linecap="round"${dashed ? ' stroke-dasharray="4,3"' : ''}/>`;
       }
       values.forEach((v, i) => {
         if (v === null || v === undefined) return;
-        marksSvg += `<circle cx="${xAt(i)}" cy="${yAt(v)}" r="3" fill="var(${spec.colorVar})" stroke="var(--surface-raised)" stroke-width="1.5"><title>${days[i].date}: ${fmt(v)} 票</title></circle>`;
+        if (days[i].estimated) {
+          const title = `${days[i].date}：预估 ${fmt(Math.round(v))} 票（插值估算，无实际同步数据）`;
+          marksSvg += `<circle cx="${xAt(i)}" cy="${yAt(v)}" r="3" fill="var(--surface-raised)" stroke="var(${spec.colorVar})" stroke-width="1.5" stroke-dasharray="1.4,1.4"><title>${title}</title></circle>`;
+        } else {
+          marksSvg += `<circle cx="${xAt(i)}" cy="${yAt(v)}" r="3" fill="var(${spec.colorVar})" stroke="var(--surface-raised)" stroke-width="1.5"><title>${days[i].date}: ${fmt(v)} 票</title></circle>`;
+        }
       });
 
       const card = document.createElement('div');
