@@ -652,17 +652,6 @@
         <p class="note-box" id="trendNote"></p>
       </div>
     </section>
-
-    <section>
-      <div class="section-head">
-        <span class="section-title">⑥ 明细看板 & 数据来源</span>
-      </div>
-      <footer class="links">
-        <div><span class="tag">明细 CSV</span> — daily_brief.py 每次运行会在本地生成 swiftx_gs_order_detail_&lt;date&gt;.csv（全量、非仅异常订单）</div>
-        <div><span class="tag">飞书简报</span> — 每天自动同步的同一份数据会推送简报文字版到飞书群</div>
-        <div><span class="tag">历史记录</span> — 存在 Supabase 数据库里，逐日环比自动计算，不需要人手动搬运</div>
-      </footer>
-    </section>
   </div>
 </div>
 
@@ -780,7 +769,7 @@
     row.innerHTML = '';
     if (days.length === 0) return;
 
-    const W = 220, H = 70, padL = 4, padR = 4, padT = 6, padB = 6;
+    const W = 260, H = 108, padL = 38, padR = 8, padT = 10, padB = 18;
     const plotW = W - padL - padR, plotH = H - padT - padB;
     const n = days.length;
     const xAt = i => (n <= 1 ? padL + plotW / 2 : padL + (plotW * i) / (n - 1));
@@ -795,8 +784,38 @@
       const first = values.find(v => v !== null && v !== undefined);
       const hasDelta = last !== null && last !== undefined && first !== undefined && first !== null && values.length > 1;
       const delta = hasDelta ? last - first : null;
-      const niceMax = niceCeil(Math.max(1, ...(known.length ? known : [1])));
-      const yAt = v => padT + plotH - (v / niceMax) * plotH;
+
+      // y 轴缩放到这几天的实际取值范围，不强制从 0 起画——这组小图要看的是
+      // "这几天有没有波动"，不是比较三个桶谁的绝对量更大（下面已经有具体
+      // 数字了）。14D+ 常年基数上万，真实的几百票波动如果按 0 起的轴画，会
+      // 被压成一条看不出变化的死直线，反而看不出趋势，所以在图上明确标出
+      // 当前的 y 轴范围（上下两条刻度线 + 数字），波动幅度多大一目了然。
+      let yMin = known.length ? Math.min(...known) : 0;
+      let yMax = known.length ? Math.max(...known) : 1;
+      if (yMin === yMax) {
+        const pad = Math.max(1, Math.round(Math.abs(yMin) * 0.05) || 1);
+        yMin -= pad; yMax += pad;
+      } else {
+        const pad = (yMax - yMin) * 0.18;
+        yMin -= pad; yMax += pad;
+      }
+      const yAt = v => padT + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+
+      let gridSvg = '';
+      [yMax, yMin].forEach(v => {
+        const y = yAt(v);
+        gridSvg += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--border-soft)" stroke-width="1"/>`;
+        gridSvg += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" class="trend-axis-label">${fmt(Math.round(v))}</text>`;
+      });
+
+      let xLabelsSvg = '';
+      const labelEvery = Math.max(1, Math.ceil(n / 4));
+      days.forEach((d, i) => {
+        if (i % labelEvery !== 0 && i !== n - 1) return;
+        const anchor = i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
+        const shortDate = (d.date || '').slice(5).replace('-', '/');
+        xLabelsSvg += `<text x="${xAt(i)}" y="${H - 4}" text-anchor="${anchor}" class="trend-axis-label">${shortDate}</text>`;
+      });
 
       let marksSvg = '';
       if (n > 1) {
@@ -816,7 +835,7 @@
         <div class="daily-trend-head">
           <span class="daily-trend-label">${escapeHtml(spec.label)}</span>
         </div>
-        <svg class="daily-trend-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapeHtml(spec.label)}近${n}日走势">${marksSvg}</svg>
+        <svg class="daily-trend-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapeHtml(spec.label)}近${n}日走势">${gridSvg}${xLabelsSvg}${marksSvg}</svg>
         <div class="daily-trend-foot">
           <span class="val tab">${last === null || last === undefined ? '—' : fmt(last)} 票</span>
           ${delta === null ? '<span class="delta-pill delta-flat">数据不足</span>' : deltaPill(delta)}
