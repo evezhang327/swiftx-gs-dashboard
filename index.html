@@ -817,9 +817,14 @@
       });
       const known = values.filter(v => v !== null && v !== undefined);
       const last = values[values.length - 1];
-      const first = values.find(v => v !== null && v !== undefined);
-      const hasDelta = last !== null && last !== undefined && first !== undefined && first !== null && values.length > 1;
-      const delta = hasDelta ? last - first : null;
+      // 角标是"较前一天"的变化（跟①KPI区块、deltaPill 在别处的含义统一），
+      // 不是"较7天前"——之前这里错拿了整个窗口最左边的点去减最右边的点，
+      // 图上最后一段线明明在往上走，角标却可能显示"↓"（因为跟一周前比是
+      // 降的），看着和图对不上。2026-09-17 应 Tim 反馈改成跟视觉上最后一段
+      // 线一致的"昨天到今天"。
+      const prev = values.length >= 2 ? values[values.length - 2] : null;
+      const hasDelta = last !== null && last !== undefined && prev !== null && prev !== undefined;
+      const delta = hasDelta ? last - prev : null;
 
       // y 轴缩放到这几天的实际取值范围，不强制从 0 起画——这组小图要看的是
       // "这几天有没有波动"，不是比较三个桶谁的绝对量更大（下面已经有具体
