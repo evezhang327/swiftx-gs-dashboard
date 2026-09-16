@@ -511,11 +511,56 @@
   .trend-table-toggle:hover { background: var(--surface-sunken); color: var(--ink); }
   #trendTableWrap { margin-top: 12px; overflow-x: auto; }
 
+  /* ④ 近一周日度走势：3 个小卡片（5D/7D/14D+ 各一张），每张独立 y 轴 ——
+     三个桶的量级差太多（14D+ 常年是 5D 的 20-30 倍），共用一条 y 轴会导致
+     5D/7D 的线看起来是条死直线，所以做成小倍数图（small multiples）而不是
+     一张三线共轴的图。 */
+  .daily-trend-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .daily-trend-card {
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px 12px;
+  }
+  .daily-trend-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .daily-trend-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .daily-trend-svg { display: block; width: 100%; height: auto; }
+  .daily-trend-foot {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .daily-trend-foot .val {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
   @media (max-width: 760px) {
     .kpi-row { grid-template-columns: 1fr; }
     .grid2 { grid-template-columns: 1fr; }
     .diff-row { grid-template-columns: 1fr; }
     .exc-row { grid-template-columns: 78px 1fr 46px 40px; }
+    .daily-trend-row { grid-template-columns: 1fr; }
     header.top { align-items: flex-start; }
     .top-meta { text-align: left; }
   }
@@ -547,66 +592,51 @@
       <div class="kpi-row" id="kpiRow"></div>
     </section>
 
-    <section class="grid2">
-      <div>
-        <div class="section-head">
-          <span class="section-title">② 核心异常结构（14D+ / FD关单桶）</span>
-          <span class="section-sub" id="excSub"></span>
-        </div>
-        <div class="panel">
-          <div id="excRows"></div>
-        </div>
-
-        <div style="height:22px"></div>
-
-        <div class="section-head">
-          <span class="section-title">③ 重点区域 Top 5（14D+ / FD关单桶）</span>
-          <span class="section-sub">按未覆盖票数排序</span>
-        </div>
-        <div class="panel">
-          <table class="regions">
-            <thead><tr><th>区域</th><th class="num">票数</th><th class="num">环比</th></tr></thead>
-            <tbody id="regionRows"></tbody>
-          </table>
-        </div>
+    <section>
+      <div class="section-head">
+        <span class="section-title">② 今日重点处理</span>
+        <span class="section-sub">14D+ / FD 桶内具体异常原因</span>
       </div>
-
-      <div>
-        <div class="section-head">
-          <span class="section-title">④ 今日重点处理</span>
-          <span class="section-sub">14D+ / FD 桶内具体异常原因</span>
-        </div>
-        <div class="panel">
-          <div id="actionRows"></div>
-        </div>
-
-        <div style="height:22px"></div>
-
-        <div class="section-head">
-          <span class="section-title">⑤ 较昨日变化</span>
-          <span class="section-sub" id="diffSectionSub">净变化，未拆分新增/解决</span>
-        </div>
-        <div class="net-banner">
-          <span class="label">14D+ 未覆盖总量净变化</span>
-          <span class="value" id="netValue">—</span>
-        </div>
-        <div class="diff-row" id="diffRow" hidden>
-          <div class="net-banner">
-            <span class="label">新增未覆盖（今天有/上次没有）</span>
-            <span class="value" id="addedValue" style="color:var(--crit-strong)">—</span>
-          </div>
-          <div class="net-banner">
-            <span class="label">已解决（上次有/今天没有）</span>
-            <span class="value" id="resolvedValue" style="color:var(--good)">—</span>
-          </div>
-        </div>
-        <p class="note-box" id="diffNoteBox">未做逐单（按运单号）连续追踪 —— 这里的环比是"今天总量 − 昨天总量"的净变化，不是"新增了多少 / 解决了多少"的拆分。如果以后需要新增/解决拆分，需要开始按天记录每个运单号的状态（目前按你的要求先不做）。</p>
+      <div class="panel">
+        <div id="actionRows"></div>
       </div>
     </section>
 
     <section>
       <div class="section-head">
-        <span class="section-title">⑥ 分区域周趋势（14D+ / FD关单桶）</span>
+        <span class="section-title">③ 较昨日变化</span>
+        <span class="section-sub" id="diffSectionSub">净变化，未拆分新增/解决</span>
+      </div>
+      <div class="net-banner">
+        <span class="label">14D+ 未覆盖总量净变化</span>
+        <span class="value" id="netValue">—</span>
+      </div>
+      <div class="diff-row" id="diffRow" hidden>
+        <div class="net-banner">
+          <span class="label">新增未覆盖（今天有/上次没有）</span>
+          <span class="value" id="addedValue" style="color:var(--crit-strong)">—</span>
+        </div>
+        <div class="net-banner">
+          <span class="label">已解决（上次有/今天没有）</span>
+          <span class="value" id="resolvedValue" style="color:var(--good)">—</span>
+        </div>
+      </div>
+      <p class="note-box" id="diffNoteBox"></p>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="section-title">④ 近一周日度走势（5D / 7D / 14D+ 总量）</span>
+        <span class="section-sub" id="dailyTrendSub"></span>
+      </div>
+      <div class="panel">
+        <div class="daily-trend-row" id="dailyTrendRow"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="section-title">⑤ 分区域周趋势（14D+ / FD关单桶）</span>
         <span class="section-sub" id="trendSub"></span>
       </div>
       <div class="panel">
@@ -625,14 +655,13 @@
 
     <section>
       <div class="section-head">
-        <span class="section-title">⑦ 明细看板 & 数据来源</span>
+        <span class="section-title">⑥ 明细看板 & 数据来源</span>
       </div>
       <footer class="links">
         <div><span class="tag">明细 CSV</span> — daily_brief.py 每次运行会在本地生成 swiftx_gs_order_detail_&lt;date&gt;.csv（全量、非仅异常订单）</div>
-        <div><span class="tag">飞书简报</span> — 每天自动同步的同一份数据会推送①-⑤文字版到飞书群</div>
+        <div><span class="tag">飞书简报</span> — 每天自动同步的同一份数据会推送简报文字版到飞书群</div>
         <div><span class="tag">历史记录</span> — 存在 Supabase 数据库里，逐日环比自动计算，不需要人手动搬运</div>
       </footer>
-      <p class="note-box" id="syncNote"></p>
     </section>
   </div>
 </div>
@@ -675,7 +704,7 @@
     document.getElementById('mainContent').hidden = true;
   }
 
-  // ⑥ 分区域周趋势 —— 5 槽分类色板（见文件头部 :root 里的 --series-1..5，
+  // ⑤ 分区域周趋势 —— 5 槽分类色板（见文件头部 :root 里的 --series-1..5，
   // 已用 dataviz skill 的 validate_palette.js 校验过，浅色模式 3 个槽位对比度
   // 落在 <3:1 的 WARN 区间，靠图例文字 + 数据表视图兜底，图上不会只靠颜色本身）。
   const TREND_COLOR_VARS = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5'];
@@ -730,6 +759,73 @@
     });
   }
 
+  // ④ 近一周日度走势：5D/7D/14D+ 三个桶各画一张小图，独立 y 轴（三个桶量级
+  // 差太多，共用一条轴会让 5D/7D 看起来是条死直线——见上面 CSS 里
+  // .daily-trend-row 的注释）。跟⑤周趋势图不一样，这里不按周聚合，直接用
+  // 每天的真实快照点（最多取最近 7 个已同步的日期，不足 7 天就有几天画几天，
+  // 不补假数据）。
+  const DAILY_TREND_BUCKETS = [
+    { key: '5', label: '5D 未覆盖', colorVar: '--series-1' },
+    { key: '7', label: '7D 未覆盖', colorVar: '--series-2' },
+    { key: '14', label: '14D+ · FD关单 未覆盖', colorVar: '--series-3' },
+  ];
+
+  function renderDailyTrend(sortedDocs) {
+    const sub = document.getElementById('dailyTrendSub');
+    const row = document.getElementById('dailyTrendRow');
+    const days = sortedDocs.slice(-7);
+    sub.textContent = days.length > 1
+      ? `最近 ${days.length} 天（${days[0].date} 至 ${days[days.length - 1].date}）`
+      : '数据还太少，等再攒几天';
+    row.innerHTML = '';
+    if (days.length === 0) return;
+
+    const W = 220, H = 70, padL = 4, padR = 4, padT = 6, padB = 6;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const n = days.length;
+    const xAt = i => (n <= 1 ? padL + plotW / 2 : padL + (plotW * i) / (n - 1));
+
+    DAILY_TREND_BUCKETS.forEach(spec => {
+      const values = days.map(d => {
+        const b = d.buckets && d.buckets[spec.key];
+        return b ? b.total : null;
+      });
+      const known = values.filter(v => v !== null && v !== undefined);
+      const last = values[values.length - 1];
+      const first = values.find(v => v !== null && v !== undefined);
+      const hasDelta = last !== null && last !== undefined && first !== undefined && first !== null && values.length > 1;
+      const delta = hasDelta ? last - first : null;
+      const niceMax = niceCeil(Math.max(1, ...(known.length ? known : [1])));
+      const yAt = v => padT + plotH - (v / niceMax) * plotH;
+
+      let marksSvg = '';
+      if (n > 1) {
+        const pts = values.map((v, i) => (v === null || v === undefined ? null : `${xAt(i)},${yAt(v)}`)).filter(Boolean).join(' ');
+        if (pts) {
+          marksSvg += `<polyline points="${pts}" fill="none" stroke="var(${spec.colorVar})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+        }
+      }
+      values.forEach((v, i) => {
+        if (v === null || v === undefined) return;
+        marksSvg += `<circle cx="${xAt(i)}" cy="${yAt(v)}" r="3" fill="var(${spec.colorVar})" stroke="var(--surface-raised)" stroke-width="1.5"><title>${days[i].date}: ${fmt(v)} 票</title></circle>`;
+      });
+
+      const card = document.createElement('div');
+      card.className = 'daily-trend-card';
+      card.innerHTML = `
+        <div class="daily-trend-head">
+          <span class="daily-trend-label">${escapeHtml(spec.label)}</span>
+        </div>
+        <svg class="daily-trend-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escapeHtml(spec.label)}近${n}日走势">${marksSvg}</svg>
+        <div class="daily-trend-foot">
+          <span class="val tab">${last === null || last === undefined ? '—' : fmt(last)} 票</span>
+          ${delta === null ? '<span class="delta-pill delta-flat">数据不足</span>' : deltaPill(delta)}
+        </div>
+      `;
+      row.appendChild(card);
+    });
+  }
+
   function renderTrendTable(weeklySeries, regionNames) {
     const table = document.getElementById('trendTable');
     table.innerHTML = '';
@@ -771,7 +867,7 @@
     const note = document.getElementById('trendNote');
     const tooltip = document.getElementById('trendTooltip');
 
-    sub.textContent = `按周（周一起点）· Top ${regionNames.length} 区域，跟③排名一致`;
+    sub.textContent = `按周（周一起点）· Top ${regionNames.length} 区域（按今天未覆盖票数排序）`;
 
     if (regionNames.length === 0 || weeklySeries.length === 0) {
       svg.innerHTML = '';
@@ -896,8 +992,7 @@
     note.innerHTML = '';
     note.appendChild(document.createElement('b')).textContent = '怎么读这张图：';
     note.appendChild(document.createTextNode(
-      `每周取该周内最后一天的"14D+ / FD关单"快照（未覆盖量是当前积压存量，不是流量，所以不做求和/平均），区域集合固定用今天③的 Top ${regionNames.length}（不随每周排名重新洗牌，颜色不会跳来跳去）。目前积累了 ${n} 周的真实数据` +
-      (n < 4 ? '——数据还比较稀疏，随着定时任务每天同步，这里的周趋势会越来越完整（不会用假数据补空白早期的周）。' : '。')
+      `每周取该周内最后一天的"14D+ / FD关单"快照（未覆盖量是当前积压存量，不是流量，所以不做求和/平均），区域集合固定用今天未覆盖票数最高的 Top ${regionNames.length}（不随每周排名重新洗牌，颜色不会跳来跳去）。`
     ));
 
     renderTrendTable(weeklySeries, regionNames);
@@ -929,7 +1024,7 @@
       dot.className = 'live-dot stale';
       warnBox.hidden = false;
       warnBox.className = 'warn-banner';
-      warnBox.textContent = `⚠️ 最新数据是 ${Math.round(ageHours / 24 * 10) / 10} 天前同步的，看起来定时任务可能没有正常运行——数字不一定是今天的实际情况，建议跟 Tim 确认一下。`;
+      warnBox.textContent = `⚠️ 最新数据是 ${Math.round(ageHours / 24 * 10) / 10} 天前同步的，看起来每日自动同步可能没有正常运行——下面的数字不一定是今天的实际情况。`;
     } else {
       dot.className = 'live-dot';
       warnBox.hidden = true;
@@ -972,58 +1067,24 @@
       kpiRow.appendChild(el);
     });
 
-    // ② exception structure, 14D bucket
+    // t14/y14: 今天/昨天的 14D+/FD关单桶快照 —— 今日重点处理、较昨日变化、
+    // 分区域周趋势都要用。
     const t14 = today.buckets["14"] || { exceptionByGroup: {}, exceptionByCode: {}, regions: {} };
     const y14 = yday ? (yday.buckets["14"] || null) : null;
-    document.getElementById('excSub').textContent = `当前未解决异常 ${fmt(Object.values(t14.exceptionByGroup || {}).reduce((a,b)=>a+b,0))} 票（含于未覆盖总量内）`;
-    const groupOrder = [
-      { key: "仓内(WHS)异常", short: "WHS", cls: "crit" },
-      { key: "HUB中转异常", short: "HUB", cls: "warn" },
-      { key: "末端派送(DL)异常", short: "DL", cls: "acc" },
-      { key: "派送商(DSP)异常", short: "DSP", cls: "mut" },
-    ];
-    const excMax = Math.max(...groupOrder.map(g => (t14.exceptionByGroup || {})[g.key] || 0), 1);
-    const excRows = document.getElementById('excRows');
-    excRows.innerHTML = '';
-    groupOrder.forEach(g => {
-      const v = (t14.exceptionByGroup || {})[g.key] || 0;
-      const pv = y14 ? ((y14.exceptionByGroup || {})[g.key] || 0) : null;
-      const delta = pv !== null ? v - pv : null;
-      const row = document.createElement('div');
-      row.className = 'exc-row';
-      row.innerHTML = `
-        <span class="exc-name">${g.short}</span>
-        <span class="exc-track"><span class="exc-fill ${g.cls}" style="width:${v / excMax * 100}%"></span></span>
-        <span class="exc-val tab">${fmt(v)}</span>
-        <span style="text-align:right">${deltaPill(delta)}</span>
-      `;
-      excRows.appendChild(row);
-    });
 
-    // ③ region top 5
+    // Top 5 区域（按14D+/FD未覆盖票数排序）—— 只喂给下面的周趋势图（2026-09-17
+    // 应 Tim 要求，把"核心异常结构"和"重点区域 Top5"这两个独立模块去掉了，
+    // 跟其它面板信息有重复；这份区域排序数据本身还留着，周趋势图要用）。
     const regionEntries = Object.entries(t14.regions || {}).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const regionMax = (regionEntries[0] && regionEntries[0][1]) || 1;
-    const regionRows = document.getElementById('regionRows');
-    regionRows.innerHTML = '';
-    regionEntries.forEach(([region, v], i) => {
-      const pv = y14 ? (y14.regions || {})[region] : null;
-      const delta = (pv !== null && pv !== undefined) ? v - pv : null;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><span class="rank ${i === 0 ? 'top' : ''}">${i + 1}</span>${escapeHtml(region.replace('区域', '').replace('其他/未分类仓','其他'))}
-          <div class="minibar-track"><span class="minibar-fill" style="width:${v / regionMax * 100}%"></span></div>
-        </td>
-        <td class="num tab">${fmt(v)}</td>
-        <td class="num">${deltaPill(delta)}</td>
-      `;
-      regionRows.appendChild(tr);
-    });
 
-    // ⑥ 分区域周趋势：跟③用同一批 Top N 区域名单（固定名单，不按每周重新排名）
+    // ④ 近一周日度走势：5D/7D/14D+ 各桶按天的真实快照（最多取最近 7 天）
+    renderDailyTrend(sorted);
+
+    // ⑤ 分区域周趋势：固定用上面这批 Top N 区域名单（不按每周重新排名）
     const trendRegionNames = regionEntries.map(([region]) => region);
     renderTrendChart(buildWeeklyRegionTrend(sorted, trendRegionNames), trendRegionNames);
 
-    // ④ action list: 长时间未找到 (ERWHS010+ERHUB009), 疑似丢失 (ERWHS006)
+    // ② action list: 长时间未找到 (ERWHS010+ERHUB009), 疑似丢失 (ERWHS006)
     const ebc = t14.exceptionByCode || {};
     const yebc = y14 ? (y14.exceptionByCode || {}) : {};
     const longMissing = (ebc["ERWHS010"] || 0) + (ebc["ERHUB009"] || 0);
@@ -1056,7 +1117,7 @@
       </div>
     `;
 
-    // ⑤ net change banner
+    // ③ net change banner
     const netEl = document.getElementById('netValue');
     if (y14) {
       const net = t14.total - y14.total;
@@ -1066,7 +1127,7 @@
       netEl.textContent = '暂无昨日数据';
     }
 
-    // ⑤ 逐单新增/解决拆分 (2026-09-14) -- t14.added/t14.resolved 只有在
+    // ③ 逐单新增/解决拆分 (2026-09-14) -- t14.added/t14.resolved 只有在
     // Supabase 的 order_snapshots 表已经攒够两天快照时才会有值；用
     // !== undefined && !== null 判断"有没有数据"，不能用真假值判断
     // （0 是"确实没有新增/解决"，是有效数据，不是"没数据"）。
@@ -1086,10 +1147,6 @@
       diffSectionSub.textContent = '净变化，未拆分新增/解决';
       diffNoteBox.textContent = '暂时还没有逐单新增/解决数据（可能是刚开始跑、还没攒够两天快照，或者这次同步跳过了明细拉取）——这里的环比是"今天总量 − 昨天总量"的净变化，不是"新增了多少 / 解决了多少"的拆分。';
     }
-
-    // sync note
-    document.getElementById('syncNote').innerHTML =
-      `<b>这份看板会自动更新：</b>后台有一个每天定时运行的同步任务，把当天的 SwiftX 数据写进 Supabase 数据库——你不需要做任何事，打开这个页面看到的就是最新数据（这个页面开着的时候，每 5 分钟也会自动重新拉取一次，不用手动刷新页面）。目前已经积累了 ${sorted.length} 天的真实数据（${sorted[0].date} 至 ${today.date}），天数越多，环比和⑥的周趋势会越准。`;
   }
 
   async function loadData() {
