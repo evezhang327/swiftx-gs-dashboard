@@ -763,8 +763,23 @@
     const sub = document.getElementById('dailyTrendSub');
     const row = document.getElementById('dailyTrendRow');
     const days = sortedDocs.slice(-7);
+
+    // 找出日期范围内没有同步记录的天（比如某天 daily_brief.py 没跑/跑失败，
+    // Supabase 里直接没有那一行——不是"点画漏了"，是那天真的没有数据）。
+    // 标在小标题里，不然连着两个点画在一起，容易误以为是连续两天。
+    const missingDates = [];
+    for (let i = 1; i < days.length; i++) {
+      const prev = new Date(days[i - 1].date + 'T00:00:00');
+      const cur = new Date(days[i].date + 'T00:00:00');
+      const gapDays = Math.round((cur - prev) / 86400000);
+      for (let g = 1; g < gapDays; g++) {
+        const missing = new Date(prev.getTime() + g * 86400000);
+        missingDates.push(missing.toISOString().slice(0, 10));
+      }
+    }
+    const gapNote = missingDates.length ? `，${missingDates.join('、')} 无同步记录` : '';
     sub.textContent = days.length > 1
-      ? `最近 ${days.length} 天（${days[0].date} 至 ${days[days.length - 1].date}）`
+      ? `最近 ${days.length} 天（${days[0].date} 至 ${days[days.length - 1].date}${gapNote}）`
       : '数据还太少，等再攒几天';
     row.innerHTML = '';
     if (days.length === 0) return;
@@ -808,13 +823,16 @@
         gridSvg += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" class="trend-axis-label">${fmt(Math.round(v))}</text>`;
       });
 
+      // 每个点都标日期——之前只挑 4 个点标（首尾+隔点），09/14 这种被跳过
+      // 的点看起来像是"没有数据"，其实点本身在，只是没画文字（2026-09-17
+      // 应 Tim 要求改）。首尾两点标完整的"月/日"，中间的点只标"日"两位数字
+      // （省空间，画得下 7 个点也不挤），月份看卡片右上角"最近 N 天"那行。
       let xLabelsSvg = '';
-      const labelEvery = Math.max(1, Math.ceil(n / 4));
       days.forEach((d, i) => {
-        if (i % labelEvery !== 0 && i !== n - 1) return;
         const anchor = i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
-        const shortDate = (d.date || '').slice(5).replace('-', '/');
-        xLabelsSvg += `<text x="${xAt(i)}" y="${H - 4}" text-anchor="${anchor}" class="trend-axis-label">${shortDate}</text>`;
+        const raw = d.date || '';
+        const label = (i === 0 || i === n - 1) ? raw.slice(5).replace('-', '/') : raw.slice(8, 10);
+        xLabelsSvg += `<text x="${xAt(i)}" y="${H - 4}" text-anchor="${anchor}" class="trend-axis-label">${label}</text>`;
       });
 
       let marksSvg = '';
